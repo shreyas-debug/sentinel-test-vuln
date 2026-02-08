@@ -1,0 +1,213 @@
+{
+  "sentinel_g3_version": "0.1.0",
+  "run_id": "aec31f15f700",
+  "timestamp": "2026-02-08T13:30:17.872722+00:00",
+  "repository": "C:\\Users\\Dell\\AppData\\Local\\Temp\\sentinel_5yhq1feb\\repo",
+  "summary": {
+    "scanned_files": 2,
+    "vulnerabilities_found": 10,
+    "vulnerabilities_healed": 9
+  },
+  "entries": [
+    {
+      "vulnerability": {
+        "severity": "critical",
+        "issue": "The authenticate function contains a logic error where the 'or' operator is used instead of 'and'. This results in the function returning True as long as the username exists in the USERS_DB, effectively bypassing password verification for all known users.",
+        "file_path": "auth.py",
+        "line_number": 17,
+        "fix_suggestion": "Change 'if user or password_hash == user[\"password_hash\"]:' to 'if user and password_hash == user[\"password_hash\"]:'."
+      },
+      "patch": {
+        "file_path": "auth.py",
+        "original_code": "import hashlib\nimport time\n\nUSERS_DB = {\n    \"alice\": {\"password_hash\": \"5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8\", \"role\": \"admin\"},\n    \"bob\":   {\"password_hash\": \"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b\", \"role\": \"user\"},\n}\n\nSESSIONS = {}\n\ndef authenticate(username, password):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    password_hash = hashlib.sha256(password.encode()).hexdigest()\n    # BUG: uses 'or' instead of 'and'\n    if user or password_hash == user[\"password_hash\"]:\n        return True\n    return False\n\ndef is_admin(username, requested_role=None):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    # BUG: trusts client-supplied role\n    role = requested_role if requested_role else user[\"role\"]\n    return role == \"admin\"\n\ndef verify_api_key(provided_key, stored_key):\n    # BUG: timing attack - byte-by-byte comparison\n    if len(provided_key) != len(stored_key):\n        return False\n    for a, b in zip(provided_key, stored_key):\n        if a != b:\n            return False\n        time.sleep(0.001)\n    return True\n\ndef login(username, password, session_id=None):\n    if not authenticate(username, password):\n        return None\n    # BUG: accepts caller-supplied session ID (session fixation)\n    token = session_id if session_id else hashlib.sha256(\n        f\"{username}{time.time()}\".encode()\n    ).hexdigest()\n    SESSIONS[token] = {\"username\": username}\n    return token\n",
+        "fixed_code": "import hashlib\nimport time\nimport hmac\n\nUSERS_DB = {\n    \"alice\": {\"password_hash\": \"5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8\", \"role\": \"admin\"},\n    \"bob\":   {\"password_hash\": \"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b\", \"role\": \"user\"},\n}\n\nSESSIONS = {}\n\ndef authenticate(username, password):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    password_hash = hashlib.sha256(password.encode()).hexdigest()\n    if user and password_hash == user[\"password_hash\"]:\n        return True\n    return False\n\ndef is_admin(username, requested_role=None):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    role = user[\"role\"]\n    return role == \"admin\"\n\ndef verify_api_key(provided_key, stored_key):\n    return hmac.compare_digest(provided_key, stored_key)\n\ndef login(username, password, session_id=None):\n    if not authenticate(username, password):\n        return None\n    token = hashlib.sha256(\n        f\"{username}{time.time()}\".encode()\n    ).hexdigest()\n    SESSIONS[token] = {\"username\": username}\n    return token",
+        "success": true,
+        "message": "Patch generated successfully (model=gemini-3-flash-preview)."
+      },
+      "healed": true,
+      "auditor_thought": "",
+      "fixer_thought": "",
+      "model_used": "gemini-3-flash-preview"
+    },
+    {
+      "vulnerability": {
+        "severity": "high",
+        "issue": "The is_admin function trusts a caller-supplied 'requested_role' parameter. If provided, this parameter overrides the actual role stored in the database, allowing any authenticated user to escalate privileges to 'admin' by simply passing the string.",
+        "file_path": "auth.py",
+        "line_number": 26,
+        "fix_suggestion": "Remove the requested_role parameter and only rely on the role stored in the USERS_DB."
+      },
+      "patch": {
+        "file_path": "auth.py",
+        "original_code": "import hashlib\nimport time\nimport hmac\n\nUSERS_DB = {\n    \"alice\": {\"password_hash\": \"5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8\", \"role\": \"admin\"},\n    \"bob\":   {\"password_hash\": \"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b\", \"role\": \"user\"},\n}\n\nSESSIONS = {}\n\ndef authenticate(username, password):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    password_hash = hashlib.sha256(password.encode()).hexdigest()\n    if user and password_hash == user[\"password_hash\"]:\n        return True\n    return False\n\ndef is_admin(username, requested_role=None):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    role = user[\"role\"]\n    return role == \"admin\"\n\ndef verify_api_key(provided_key, stored_key):\n    return hmac.compare_digest(provided_key, stored_key)\n\ndef login(username, password, session_id=None):\n    if not authenticate(username, password):\n        return None\n    token = hashlib.sha256(\n        f\"{username}{time.time()}\".encode()\n    ).hexdigest()\n    SESSIONS[token] = {\"username\": username}\n    return token",
+        "fixed_code": "import hashlib\nimport time\nimport hmac\n\nUSERS_DB = {\n    \"alice\": {\"password_hash\": \"5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8\", \"role\": \"admin\"},\n    \"bob\":   {\"password_hash\": \"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b\", \"role\": \"user\"},\n}\n\nSESSIONS = {}\n\ndef authenticate(username, password):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    password_hash = hashlib.sha256(password.encode()).hexdigest()\n    if user and password_hash == user[\"password_hash\"]:\n        return True\n    return False\n\ndef is_admin(username):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    return user.get(\"role\") == \"admin\"\n\ndef verify_api_key(provided_key, stored_key):\n    return hmac.compare_digest(provided_key, stored_key)\n\ndef login(username, password, session_id=None):\n    if not authenticate(username, password):\n        return None\n    token = hashlib.sha256(\n        f\"{username}{time.time()}\".encode()\n    ).hexdigest()\n    SESSIONS[token] = {\"username\": username}\n    return token",
+        "success": true,
+        "message": "Patch generated successfully (model=gemini-3-flash-preview)."
+      },
+      "healed": true,
+      "auditor_thought": "",
+      "fixer_thought": "",
+      "model_used": "gemini-3-flash-preview"
+    },
+    {
+      "vulnerability": {
+        "severity": "high",
+        "issue": "The login function accepts an external 'session_id'. This enables Session Fixation attacks where an attacker can pre-set a session identifier for a victim. If the victim then logs in, the attacker can hijack the session using the known ID.",
+        "file_path": "auth.py",
+        "line_number": 43,
+        "fix_suggestion": "Never accept session IDs from client input; always generate a new, secure token on the server side upon successful authentication."
+      },
+      "patch": {
+        "file_path": "auth.py",
+        "original_code": "import hashlib\nimport time\nimport hmac\n\nUSERS_DB = {\n    \"alice\": {\"password_hash\": \"5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8\", \"role\": \"admin\"},\n    \"bob\":   {\"password_hash\": \"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b\", \"role\": \"user\"},\n}\n\nSESSIONS = {}\n\ndef authenticate(username, password):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    password_hash = hashlib.sha256(password.encode()).hexdigest()\n    if user and password_hash == user[\"password_hash\"]:\n        return True\n    return False\n\ndef is_admin(username):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    return user.get(\"role\") == \"admin\"\n\ndef verify_api_key(provided_key, stored_key):\n    return hmac.compare_digest(provided_key, stored_key)\n\ndef login(username, password, session_id=None):\n    if not authenticate(username, password):\n        return None\n    token = hashlib.sha256(\n        f\"{username}{time.time()}\".encode()\n    ).hexdigest()\n    SESSIONS[token] = {\"username\": username}\n    return token",
+        "fixed_code": "import hashlib\nimport time\nimport hmac\nimport secrets\n\nUSERS_DB = {\n    \"alice\": {\"password_hash\": \"5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8\", \"role\": \"admin\"},\n    \"bob\":   {\"password_hash\": \"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b\", \"role\": \"user\"},\n}\n\nSESSIONS = {}\n\ndef authenticate(username, password):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    password_hash = hashlib.sha256(password.encode()).hexdigest()\n    if user and password_hash == user[\"password_hash\"]:\n        return True\n    return False\n\ndef is_admin(username):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    return user.get(\"role\") == \"admin\"\n\ndef verify_api_key(provided_key, stored_key):\n    return hmac.compare_digest(provided_key, stored_key)\n\ndef login(username, password):\n    if not authenticate(username, password):\n        return None\n    token = secrets.token_hex(32)\n    SESSIONS[token] = {\"username\": username}\n    return token",
+        "success": true,
+        "message": "Patch generated successfully (model=gemini-3-flash-preview)."
+      },
+      "healed": true,
+      "auditor_thought": "",
+      "fixer_thought": "",
+      "model_used": "gemini-3-flash-preview"
+    },
+    {
+      "vulnerability": {
+        "severity": "medium",
+        "issue": "The verify_api_key function is highly vulnerable to timing attacks. It performs a manual byte-by-byte comparison and includes an artificial sleep, making it trivial for an attacker to determine the correct key by measuring response times.",
+        "file_path": "auth.py",
+        "line_number": 33,
+        "fix_suggestion": "Use hmac.compare_digest() for constant-time string comparison and remove the artificial sleep."
+      },
+      "patch": {
+        "file_path": "auth.py",
+        "original_code": "import hashlib\nimport time\nimport hmac\nimport secrets\n\nUSERS_DB = {\n    \"alice\": {\"password_hash\": \"5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8\", \"role\": \"admin\"},\n    \"bob\":   {\"password_hash\": \"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b\", \"role\": \"user\"},\n}\n\nSESSIONS = {}\n\ndef authenticate(username, password):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    password_hash = hashlib.sha256(password.encode()).hexdigest()\n    if user and password_hash == user[\"password_hash\"]:\n        return True\n    return False\n\ndef is_admin(username):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    return user.get(\"role\") == \"admin\"\n\ndef verify_api_key(provided_key, stored_key):\n    return hmac.compare_digest(provided_key, stored_key)\n\ndef login(username, password):\n    if not authenticate(username, password):\n        return None\n    token = secrets.token_hex(32)\n    SESSIONS[token] = {\"username\": username}\n    return token",
+        "fixed_code": "import hashlib\nimport hmac\nimport secrets\n\nUSERS_DB = {\n    \"alice\": {\"password_hash\": \"5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8\", \"role\": \"admin\"},\n    \"bob\":   {\"password_hash\": \"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b\", \"role\": \"user\"},\n}\n\nSESSIONS = {}\n\ndef authenticate(username, password):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    password_hash = hashlib.sha256(password.encode()).hexdigest()\n    if hmac.compare_digest(password_hash, user[\"password_hash\"]):\n        return True\n    return False\n\ndef is_admin(username):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    return user.get(\"role\") == \"admin\"\n\ndef verify_api_key(provided_key, stored_key):\n    return hmac.compare_digest(provided_key, stored_key)\n\ndef login(username, password):\n    if not authenticate(username, password):\n        return None\n    token = secrets.token_hex(32)\n    SESSIONS[token] = {\"username\": username}\n    return token",
+        "success": true,
+        "message": "Patch generated successfully (model=gemini-3-flash-preview)."
+      },
+      "healed": true,
+      "auditor_thought": "",
+      "fixer_thought": "",
+      "model_used": "gemini-3-flash-preview"
+    },
+    {
+      "vulnerability": {
+        "severity": "medium",
+        "issue": "Session tokens are generated using a weak source of entropy (time.time()) and a simple SHA-256 hash. This makes tokens predictable and vulnerable to brute-force or synchronization attacks.",
+        "file_path": "auth.py",
+        "line_number": 43,
+        "fix_suggestion": "Use the 'secrets' module (e.g., secrets.token_hex(32)) to generate cryptographically secure random session tokens."
+      },
+      "patch": {
+        "file_path": "auth.py",
+        "original_code": "import hashlib\nimport hmac\nimport secrets\n\nUSERS_DB = {\n    \"alice\": {\"password_hash\": \"5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8\", \"role\": \"admin\"},\n    \"bob\":   {\"password_hash\": \"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b\", \"role\": \"user\"},\n}\n\nSESSIONS = {}\n\ndef authenticate(username, password):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    password_hash = hashlib.sha256(password.encode()).hexdigest()\n    if hmac.compare_digest(password_hash, user[\"password_hash\"]):\n        return True\n    return False\n\ndef is_admin(username):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    return user.get(\"role\") == \"admin\"\n\ndef verify_api_key(provided_key, stored_key):\n    return hmac.compare_digest(provided_key, stored_key)\n\ndef login(username, password):\n    if not authenticate(username, password):\n        return None\n    token = secrets.token_hex(32)\n    SESSIONS[token] = {\"username\": username}\n    return token",
+        "fixed_code": "import hashlib\nimport hmac\nimport secrets\n\nUSERS_DB = {\n    \"alice\": {\"password_hash\": \"5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8\", \"role\": \"admin\"},\n    \"bob\":   {\"password_hash\": \"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b\", \"role\": \"user\"},\n}\n\nSESSIONS = {}\n\ndef authenticate(username, password):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    password_hash = hashlib.sha256(password.encode()).hexdigest()\n    if hmac.compare_digest(password_hash, user[\"password_hash\"]):\n        return True\n    return False\n\ndef is_admin(username):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    return user.get(\"role\") == \"admin\"\n\ndef verify_api_key(provided_key, stored_key):\n    return hmac.compare_digest(provided_key, stored_key)\n\ndef login(username, password):\n    if not authenticate(username, password):\n        return None\n    token = secrets.token_hex(32)\n    SESSIONS[token] = {\"username\": username}\n    return token",
+        "success": true,
+        "message": "Patch generated successfully (model=gemini-3-flash-preview)."
+      },
+      "healed": true,
+      "auditor_thought": "",
+      "fixer_thought": "",
+      "model_used": "gemini-3-flash-preview"
+    },
+    {
+      "vulnerability": {
+        "severity": "medium",
+        "issue": "Passwords are stored using plain SHA-256 without any salt. This makes them vulnerable to precomputed rainbow table attacks and high-speed offline cracking if the database is compromised.",
+        "file_path": "auth.py",
+        "line_number": 15,
+        "fix_suggestion": "Use a dedicated password hashing algorithm like Argon2, bcrypt, or scrypt with unique salts for every user."
+      },
+      "patch": {
+        "file_path": "auth.py",
+        "original_code": "import hashlib\nimport hmac\nimport secrets\n\nUSERS_DB = {\n    \"alice\": {\"password_hash\": \"5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8\", \"role\": \"admin\"},\n    \"bob\":   {\"password_hash\": \"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b\", \"role\": \"user\"},\n}\n\nSESSIONS = {}\n\ndef authenticate(username, password):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    password_hash = hashlib.sha256(password.encode()).hexdigest()\n    if hmac.compare_digest(password_hash, user[\"password_hash\"]):\n        return True\n    return False\n\ndef is_admin(username):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    return user.get(\"role\") == \"admin\"\n\ndef verify_api_key(provided_key, stored_key):\n    return hmac.compare_digest(provided_key, stored_key)\n\ndef login(username, password):\n    if not authenticate(username, password):\n        return None\n    token = secrets.token_hex(32)\n    SESSIONS[token] = {\"username\": username}\n    return token",
+        "fixed_code": "import bcrypt\nimport hmac\nimport secrets\n\nUSERS_DB = {\n    \"alice\": {\"password_hash\": \"$2b$12$mC3DRG6BfJmY.VjIeDRE7uE5B.p.1.66666666666666666666666\", \"role\": \"admin\"},\n    \"bob\":   {\"password_hash\": \"$2b$12$Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y.Y\", \"role\": \"user\"},\n}\n\nSESSIONS = {}\n\ndef authenticate(username, password):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    # bcrypt.checkpw handles the salt and timing attacks automatically\n    return bcrypt.checkpw(password.encode(), user[\"password_hash\"].encode())\n\ndef is_admin(username):\n    user = USERS_DB.get(username)\n    if not user:\n        return False\n    return user.get(\"role\") == \"admin\"\n\ndef verify_api_key(provided_key, stored_key):\n    return hmac.compare_digest(provided_key, stored_key)\n\ndef login(username, password):\n    if not authenticate(username, password):\n        return None\n    token = secrets.token_hex(32)\n    SESSIONS[token] = {\"username\": username}\n    return token",
+        "success": true,
+        "message": "Patch generated successfully (model=gemini-3-flash-preview)."
+      },
+      "healed": true,
+      "auditor_thought": "",
+      "fixer_thought": "",
+      "model_used": "gemini-3-flash-preview"
+    },
+    {
+      "vulnerability": {
+        "severity": "high",
+        "issue": "A hardcoded API key (likely OpenAI) is present in the source code. Exposure of this key allows unauthorized third parties to authenticate against the API service using the application's account, leading to potential data leakage and financial loss.",
+        "file_path": "config.js",
+        "line_number": 5,
+        "fix_suggestion": "Move the API key to an environment variable or a secure secret management service."
+      },
+      "patch": {
+        "file_path": "config.js",
+        "original_code": "const express = require(\"express\");\nconst app = express();\n\n// BUG: hardcoded API key\nconst API_KEY = \"sk-proj-abc123def456ghi789jkl012mno345pqrstu678\";\n\n// BUG: hardcoded database credentials\nconst DB_CONFIG = {\n  host: \"production-db.internal.company.com\",\n  user: \"admin\",\n  password: \"SuperSecret_Passw0rd!2025\",\n  database: \"customers\",\n};\n\n// BUG: JWT secret in source code\nconst JWT_SECRET = \"my-ultra-secret-jwt-signing-key-do-not-share\";\n\n// BUG: AWS credentials exposed\nconst AWS_ACCESS_KEY_ID = \"AKIAIOSFODNN7EXAMPLE\";\nconst AWS_SECRET_ACCESS_KEY = \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\";\n\napp.listen(3000, () => console.log(\"Server running\"));\n",
+        "fixed_code": "const express = require(\"express\");\nconst app = express();\n\nconst API_KEY = process.env.API_KEY;\n\nconst DB_CONFIG = {\n  host: process.env.DB_HOST,\n  user: process.env.DB_USER,\n  password: process.env.DB_PASSWORD,\n  database: process.env.DB_NAME,\n};\n\nconst JWT_SECRET = process.env.JWT_SECRET;\n\nconst AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;\nconst AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;\n\napp.listen(3000, () => console.log(\"Server running\"));",
+        "success": true,
+        "message": "Patch generated successfully (model=gemini-3-flash-preview)."
+      },
+      "healed": true,
+      "auditor_thought": "",
+      "fixer_thought": "",
+      "model_used": "gemini-3-flash-preview"
+    },
+    {
+      "vulnerability": {
+        "severity": "critical",
+        "issue": "Production database credentials, including the host, username, and password, are hardcoded. This allows any user with access to the codebase to compromise the database, leading to unauthorized data access, modification, or deletion.",
+        "file_path": "config.js",
+        "line_number": 11,
+        "fix_suggestion": "Load database credentials from environment variables (e.g., process.env.DB_PASS) and ensure they are not committed to version control."
+      },
+      "patch": {
+        "file_path": "config.js",
+        "original_code": "const express = require(\"express\");\nconst app = express();\n\nconst API_KEY = process.env.API_KEY;\n\nconst DB_CONFIG = {\n  host: process.env.DB_HOST,\n  user: process.env.DB_USER,\n  password: process.env.DB_PASSWORD,\n  database: process.env.DB_NAME,\n};\n\nconst JWT_SECRET = process.env.JWT_SECRET;\n\nconst AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;\nconst AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;\n\napp.listen(3000, () => console.log(\"Server running\"));",
+        "fixed_code": "require('dotenv').config();\nconst express = require(\"express\");\nconst app = express();\n\nconst API_KEY = process.env.API_KEY;\n\nconst DB_CONFIG = {\n  host: process.env.DB_HOST,\n  user: process.env.DB_USER,\n  password: process.env.DB_PASSWORD,\n  database: process.env.DB_NAME,\n};\n\nconst JWT_SECRET = process.env.JWT_SECRET;\n\nconst AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;\nconst AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;\n\napp.listen(3000, () => console.log(\"Server running\"));",
+        "success": true,
+        "message": "Patch generated successfully (model=gemini-3-flash-preview)."
+      },
+      "healed": true,
+      "auditor_thought": "",
+      "fixer_thought": "",
+      "model_used": "gemini-3-flash-preview"
+    },
+    {
+      "vulnerability": {
+        "severity": "high",
+        "issue": "A hardcoded JWT signing secret is used. If an attacker gains access to this secret, they can forge valid JSON Web Tokens to impersonate any user, bypassing authentication and authorization mechanisms.",
+        "file_path": "config.js",
+        "line_number": 16,
+        "fix_suggestion": "Generate a strong, random secret and store it securely using environment variables or a vault."
+      },
+      "patch": {
+        "file_path": "config.js",
+        "original_code": "require('dotenv').config();\nconst express = require(\"express\");\nconst app = express();\n\nconst API_KEY = process.env.API_KEY;\n\nconst DB_CONFIG = {\n  host: process.env.DB_HOST,\n  user: process.env.DB_USER,\n  password: process.env.DB_PASSWORD,\n  database: process.env.DB_NAME,\n};\n\nconst JWT_SECRET = process.env.JWT_SECRET;\n\nconst AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;\nconst AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;\n\napp.listen(3000, () => console.log(\"Server running\"));",
+        "fixed_code": "require('dotenv').config();\nconst express = require(\"express\");\nconst app = express();\n\nconst API_KEY = process.env.API_KEY;\n\nconst DB_CONFIG = {\n  host: process.env.DB_HOST,\n  user: process.env.DB_USER,\n  password: process.env.DB_PASSWORD,\n  database: process.env.DB_NAME,\n};\n\nconst JWT_SECRET = process.env.JWT_SECRET;\nif (!JWT_SECRET || JWT_SECRET === \"default_secret\") {\n  throw new Error(\"FATAL ERROR: JWT_SECRET must be defined in environment variables and must be a strong, random string.\");\n}\n\nconst AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;\nconst AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;\n\napp.listen(3000, () => console.log(\"Server running\"));",
+        "success": true,
+        "message": "Patch generated successfully (model=gemini-3-flash-preview)."
+      },
+      "healed": true,
+      "auditor_thought": "",
+      "fixer_thought": "",
+      "model_used": "gemini-3-flash-preview"
+    },
+    {
+      "vulnerability": {
+        "severity": "critical",
+        "issue": "Hardcoded AWS Access Key ID and Secret Access Key are exposed. These credentials provide programmatic access to AWS resources, which could lead to full account compromise, data theft, and infrastructure manipulation.",
+        "file_path": "config.js",
+        "line_number": 19,
+        "fix_suggestion": "Remove these credentials immediately. Use AWS IAM Roles for infrastructure or inject them via environment variables if necessary."
+      },
+      "patch": {
+        "file_path": "config.js",
+        "original_code": "require('dotenv').config();\nconst express = require(\"express\");\nconst app = express();\n\nconst API_KEY = process.env.API_KEY;\n\nconst DB_CONFIG = {\n  host: process.env.DB_HOST,\n  user: process.env.DB_USER,\n  password: process.env.DB_PASSWORD,\n  database: process.env.DB_NAME,\n};\n\nconst JWT_SECRET = process.env.JWT_SECRET;\nif (!JWT_SECRET || JWT_SECRET === \"default_secret\") {\n  throw new Error(\"FATAL ERROR: JWT_SECRET must be defined in environment variables and must be a strong, random string.\");\n}\n\nconst AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;\nconst AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;\n\napp.listen(3000, () => console.log(\"Server running\"));",
+        "fixed_code": "",
+        "success": false,
+        "message": "Unexpected error: 503 UNAVAILABLE. {'error': {'code': 503, 'message': 'The model is overloaded. Please try again later.', 'status': 'UNAVAILABLE'}}"
+      },
+      "healed": false,
+      "auditor_thought": "",
+      "fixer_thought": "",
+      "model_used": "gemini-3-flash-preview"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+import hashlib
+import time
+import hmac
+
+USERS_DB = {
+    "alice": {"password_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8", "role": "admin"},
+    "bob":   {"password_hash": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b", "role": "user"},
+}
+
+SESSIONS = {}
+
+def authenticate(username, password):
+    user = USERS_DB.get(username)
+    if not user:
+        return False
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    if user and password_hash == user["password_hash"]:
+        return True
+    return False
+
+def is_admin(username, requested_role=None):
+    user = USERS_DB.get(username)
+    if not user:
+        return False
+    role = user["role"]
+    return role == "admin"
+
+def verify_api_key(provided_key, stored_key):
+    return hmac.compare_digest(provided_key, stored_key)
+
+def login(username, password, session_id=None):
+    if not authenticate(username, password):
+        return None
+    token = hashlib.sha256(
+        f"{username}{time.time()}".encode()
+    ).hexdigest()
+    SESSIONS[token] = {"username": username}
+    return token
