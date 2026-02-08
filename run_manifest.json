@@ -1,0 +1,89 @@
+{
+  "sentinel_g3_version": "0.1.0",
+  "run_id": "7ce7c7f1e93f",
+  "timestamp": "2026-02-08T12:24:11.269972+00:00",
+  "repository": "C:\\Users\\Dell\\AppData\\Local\\Temp\\sentinel_yumx19vl\\repo",
+  "summary": {
+    "scanned_files": 2,
+    "vulnerabilities_found": 4,
+    "vulnerabilities_healed": 4
+  },
+  "entries": [
+    {
+      "vulnerability": {
+        "severity": "high",
+        "issue": "A hardcoded API key (sk-proj-...) is present in the source code. If committed to a repository, this key can be used by unauthorized parties to access external services, potentially incurring costs or compromising sensitive data.",
+        "file_path": "config.js",
+        "line_number": 5,
+        "fix_suggestion": "Move the API key to an environment variable or a secret management service like AWS Secrets Manager or HashiCorp Vault."
+      },
+      "patch": {
+        "file_path": "config.js",
+        "original_code": "const express = require(\"express\");\nconst app = express();\n\n// BUG: hardcoded API key\nconst API_KEY = \"sk-proj-abc123def456ghi789jkl012mno345pqrstu678\";\n\n// BUG: hardcoded database credentials\nconst DB_CONFIG = {\n  host: \"production-db.internal.company.com\",\n  user: \"admin\",\n  password: \"SuperSecret_Passw0rd!2025\",\n  database: \"customers\",\n};\n\n// BUG: JWT secret in source code\nconst JWT_SECRET = \"my-ultra-secret-jwt-signing-key-do-not-share\";\n\n// BUG: AWS credentials exposed\nconst AWS_ACCESS_KEY_ID = \"AKIAIOSFODNN7EXAMPLE\";\nconst AWS_SECRET_ACCESS_KEY = \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\";\n\napp.listen(3000, () => console.log(\"Server running\"));\n",
+        "fixed_code": "const express = require(\"express\");\nconst app = express();\n\nconst API_KEY = process.env.API_KEY;\n\nconst DB_CONFIG = {\n  host: process.env.DB_HOST,\n  user: process.env.DB_USER,\n  password: process.env.DB_PASSWORD,\n  database: process.env.DB_NAME,\n};\n\nconst JWT_SECRET = process.env.JWT_SECRET;\n\nconst AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;\nconst AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;\n\napp.listen(3000, () => console.log(\"Server running\"));",
+        "success": true,
+        "message": "Patch generated successfully (model=gemini-3-flash-preview)."
+      },
+      "healed": true,
+      "auditor_thought": "",
+      "fixer_thought": ""
+    },
+    {
+      "vulnerability": {
+        "severity": "critical",
+        "issue": "Hardcoded database credentials, including a plaintext password, are exposed. This allows any user with access to the source code to connect to the production database, leading to potential data exfiltration or destruction.",
+        "file_path": "config.js",
+        "line_number": 11,
+        "fix_suggestion": "Use environment variables (e.g., process.env.DB_PASS) to load database credentials at runtime."
+      },
+      "patch": {
+        "file_path": "config.js",
+        "original_code": "const express = require(\"express\");\nconst app = express();\n\nconst API_KEY = process.env.API_KEY;\n\nconst DB_CONFIG = {\n  host: process.env.DB_HOST,\n  user: process.env.DB_USER,\n  password: process.env.DB_PASSWORD,\n  database: process.env.DB_NAME,\n};\n\nconst JWT_SECRET = process.env.JWT_SECRET;\n\nconst AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;\nconst AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;\n\napp.listen(3000, () => console.log(\"Server running\"));",
+        "fixed_code": "require('dotenv').config();\nconst express = require(\"express\");\nconst app = express();\n\nconst API_KEY = process.env.API_KEY;\n\nconst DB_CONFIG = {\n  host: process.env.DB_HOST,\n  user: process.env.DB_USER,\n  password: process.env.DB_PASSWORD,\n  database: process.env.DB_NAME,\n};\n\nconst JWT_SECRET = process.env.JWT_SECRET;\n\nconst AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;\nconst AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;\n\napp.listen(3000, () => console.log(\"Server running\"));",
+        "success": true,
+        "message": "Patch generated successfully (model=gemini-3-flash-preview)."
+      },
+      "healed": true,
+      "auditor_thought": "",
+      "fixer_thought": ""
+    },
+    {
+      "vulnerability": {
+        "severity": "critical",
+        "issue": "The JWT signing secret is hardcoded. An attacker who knows this secret can forge valid JWT tokens, allowing them to bypass authentication and impersonate any user in the system.",
+        "file_path": "config.js",
+        "line_number": 16,
+        "fix_suggestion": "Store the JWT secret in a secure environment variable and use a long, random string."
+      },
+      "patch": {
+        "file_path": "config.js",
+        "original_code": "require('dotenv').config();\nconst express = require(\"express\");\nconst app = express();\n\nconst API_KEY = process.env.API_KEY;\n\nconst DB_CONFIG = {\n  host: process.env.DB_HOST,\n  user: process.env.DB_USER,\n  password: process.env.DB_PASSWORD,\n  database: process.env.DB_NAME,\n};\n\nconst JWT_SECRET = process.env.JWT_SECRET;\n\nconst AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;\nconst AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;\n\napp.listen(3000, () => console.log(\"Server running\"));",
+        "fixed_code": "require('dotenv').config();\nconst express = require(\"express\");\nconst app = express();\n\nconst API_KEY = process.env.API_KEY;\n\nconst DB_CONFIG = {\n  host: process.env.DB_HOST,\n  user: process.env.DB_USER,\n  password: process.env.DB_PASSWORD,\n  database: process.env.DB_NAME,\n};\n\nconst JWT_SECRET = process.env.JWT_SECRET;\n\nconst AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;\nconst AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;\n\napp.listen(3000, () => console.log(\"Server running\"));",
+        "success": true,
+        "message": "Patch generated successfully (model=gemini-3-flash-preview)."
+      },
+      "healed": true,
+      "auditor_thought": "",
+      "fixer_thought": ""
+    },
+    {
+      "vulnerability": {
+        "severity": "critical",
+        "issue": "AWS Access Key ID and Secret Access Key are hardcoded. This grants full programmatic access to the AWS resources associated with these credentials, which can lead to complete infrastructure compromise.",
+        "file_path": "config.js",
+        "line_number": 19,
+        "fix_suggestion": "Remove these credentials immediately. Use IAM Roles for EC2/Lambda or local credentials files (~/.aws/credentials) that are never committed to source control."
+      },
+      "patch": {
+        "file_path": "config.js",
+        "original_code": "require('dotenv').config();\nconst express = require(\"express\");\nconst app = express();\n\nconst API_KEY = process.env.API_KEY;\n\nconst DB_CONFIG = {\n  host: process.env.DB_HOST,\n  user: process.env.DB_USER,\n  password: process.env.DB_PASSWORD,\n  database: process.env.DB_NAME,\n};\n\nconst JWT_SECRET = process.env.JWT_SECRET;\n\nconst AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;\nconst AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;\n\napp.listen(3000, () => console.log(\"Server running\"));",
+        "fixed_code": "require('dotenv').config();\nconst express = require(\"express\");\nconst app = express();\n\nconst API_KEY = process.env.API_KEY;\n\nconst DB_CONFIG = {\n  host: process.env.DB_HOST,\n  user: process.env.DB_USER,\n  password: process.env.DB_PASSWORD,\n  database: process.env.DB_NAME,\n};\n\nconst JWT_SECRET = process.env.JWT_SECRET;\n\napp.listen(3000, () => console.log(\"Server running\"));",
+        "success": true,
+        "message": "Patch generated successfully (model=gemini-3-flash-preview)."
+      },
+      "healed": true,
+      "auditor_thought": "",
+      "fixer_thought": ""
+    }
+  ]
+}
