@@ -1,9 +1,9 @@
-import bcrypt
+import hashlib
 import secrets
 
 USERS_DB = {
-    "alice": {"password_hash": b"$2b$12$KIX67C6f5Uf5f5f5f5f5f.L/Oq.vOq.vOq.vOq.vOq.vOq.vOq.vO", "role": "admin"},
-    "bob":   {"password_hash": b"$2b$12$KIX67C6f5Uf5f5f5f5f5f.u/Oq.vOq.vOq.vOq.vOq.vOq.vOq.vO", "role": "user"},
+    "alice": {"password_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8", "role": "admin"},
+    "bob":   {"password_hash": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b", "role": "user"},
 }
 
 SESSIONS = {}
@@ -12,7 +12,8 @@ def authenticate(username, password):
     user = USERS_DB.get(username)
     if not user:
         return False
-    return bcrypt.checkpw(password.encode(), user["password_hash"])
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    return secrets.compare_digest(password_hash, user["password_hash"])
 
 def is_admin(username):
     user = USERS_DB.get(username)
