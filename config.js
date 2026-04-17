@@ -1,22 +1,22 @@
 const express = require("express");
 const app = express();
 
-// BUG: hardcoded API key
-const API_KEY = "sk-proj-abc123def456ghi789jkl012mno345pqrstu678";
+// Fixed: API key moved to environment variables
+const API_KEY = process.env.OPENAI_API_KEY;
 
-// BUG: hardcoded database credentials
+// Fixed: Database credentials moved to environment variables
 const DB_CONFIG = {
-  host: "production-db.internal.company.com",
-  user: "admin",
-  password: "SuperSecret_Passw0rd!2025",
-  database: "customers",
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
 };
 
-// BUG: JWT secret in source code
-const JWT_SECRET = "my-ultra-secret-jwt-signing-key-do-not-share";
+// Fixed: JWT secret moved to environment variables
+const JWT_SECRET = process.env.JWT_SECRET;
 
-// BUG: AWS credentials exposed
-const AWS_ACCESS_KEY_ID = "AKIAIOSFODNN7EXAMPLE";
-const AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
+// Fixed: AWS credentials moved to environment variables (or provided via IAM roles)
+const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
+const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
 
 app.listen(3000, () => console.log("Server running"));

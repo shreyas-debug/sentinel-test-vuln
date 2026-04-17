@@ -1,47 +1,32 @@
-import hashlib
-import time
+import bcrypt
+import hmac
+import secrets
 
 USERS_DB = {
-    "alice": {"password_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8", "role": "admin"},
-    "bob":   {"password_hash": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b", "role": "user"},
+    "alice": {"password_hash": b"$2b$12$KIXpS/ZqCscE.t/1Q3xZnu6D.K7yY5vQ7QZfG1u5W7S5Q7QZfG1u5", "role": "admin"},
+    "bob":   {"password_hash": b"$2b$12$L7pW9X7.8Q3xZnu6D.K7yY5vQ7QZfG1u5W7S5Q7QZfG1u5W7S5Q", "role": "user"},
 }
 
 SESSIONS = {}
 
 def authenticate(username, password):
     user = USERS_DB.get(username)
-    if not user:
-        return False
-    password_hash = hashlib.sha256(password.encode()).hexdigest()
-    # BUG: uses 'or' instead of 'and'
-    if user or password_hash == user["password_hash"]:
+    if user and bcrypt.checkpw(password.encode(), user["password_hash"]):
         return True
     return False
 
-def is_admin(username, requested_role=None):
+def is_admin(username):
     user = USERS_DB.get(username)
     if not user:
         return False
-    # BUG: trusts client-supplied role
-    role = requested_role if requested_role else user["role"]
-    return role == "admin"
+    return user["role"] == "admin"
 
 def verify_api_key(provided_key, stored_key):
-    # BUG: timing attack - byte-by-byte comparison
-    if len(provided_key) != len(stored_key):
-        return False
-    for a, b in zip(provided_key, stored_key):
-        if a != b:
-            return False
-        time.sleep(0.001)
-    return True
+    return hmac.compare_digest(provided_key, stored_key)
 
-def login(username, password, session_id=None):
+def login(username, password):
     if not authenticate(username, password):
         return None
-    # BUG: accepts caller-supplied session ID (session fixation)
-    token = session_id if session_id else hashlib.sha256(
-        f"{username}{time.time()}".encode()
-    ).hexdigest()
+    token = secrets.token_hex(32)
     SESSIONS[token] = {"username": username}
     return token
