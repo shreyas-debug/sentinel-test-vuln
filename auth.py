@@ -1,5 +1,6 @@
 import hashlib
-import time
+import hmac
+import secrets
 
 USERS_DB = {
     "alice": {"password_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8", "role": "admin"},
@@ -13,35 +14,22 @@ def authenticate(username, password):
     if not user:
         return False
     password_hash = hashlib.sha256(password.encode()).hexdigest()
-    # BUG: uses 'or' instead of 'and'
-    if user or password_hash == user["password_hash"]:
+    if user and password_hash == user["password_hash"]:
         return True
     return False
 
-def is_admin(username, requested_role=None):
+def is_admin(username):
     user = USERS_DB.get(username)
     if not user:
         return False
-    # BUG: trusts client-supplied role
-    role = requested_role if requested_role else user["role"]
-    return role == "admin"
+    return user["role"] == "admin"
 
 def verify_api_key(provided_key, stored_key):
-    # BUG: timing attack - byte-by-byte comparison
-    if len(provided_key) != len(stored_key):
-        return False
-    for a, b in zip(provided_key, stored_key):
-        if a != b:
-            return False
-        time.sleep(0.001)
-    return True
+    return hmac.compare_digest(provided_key, stored_key)
 
-def login(username, password, session_id=None):
+def login(username, password):
     if not authenticate(username, password):
         return None
-    # BUG: accepts caller-supplied session ID (session fixation)
-    token = session_id if session_id else hashlib.sha256(
-        f"{username}{time.time()}".encode()
-    ).hexdigest()
+    token = secrets.token_hex(32)
     SESSIONS[token] = {"username": username}
     return token
